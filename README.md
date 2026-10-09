@@ -30,5 +30,16 @@ Situs ini pakai Cloudflare dengan dua lapis proteksi:
 3. **Rate limit** — kebanyakan request cepat = 403 sementara. Scraper kasih jeda
    1.5 detik antar anime. Jangan digas.
 
-Stream URL asli dienkripsi (`data-kk` + token auth) — scraper ini ambil metadata
-dan daftar episode saja, bukan link video langsung.
+## Ambil video URL langsung
+
+`video.js` pakai Playwright (headless Chromium) — biarkan browser yang
+menjalankan JS token/decrypt situsnya, kita tinggal ambil hasilnya:
+
+```bash
+npm i playwright && npx playwright install chromium
+node video.js "https://v20.kuramanime.ing/anime/4873/.../episode/4"
+node video.js "<url>" doodstream   # paksa server tertentu
+```
+
+Output: `hlsSrc` (URL .m3u8), daftar server yang tersedia.
+Jalankan di mesin yang ada browser (Oracle/PC).
