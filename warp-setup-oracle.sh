@@ -50,7 +50,16 @@ echo "== 3. Script route khusus Cloudflare =="
 # Diambil dari daftar resmi https://www.cloudflare.com/ips-v4 (kuramanime di belakang Cloudflare)
 sudo tee /etc/wireguard/cf-routes.sh > /dev/null <<'EOF'
 #!/bin/bash
-# Tambah route via warp HANYA untuk IP Cloudflare
+# Tambah route via warp HANYA untuk IP Cloudflare.
+# PENTING: kecualikan dulu IP endpoint WireGuard sendiri (engage.cloudflareclient.com
+# resolve ke IP Cloudflare). Tanpa ini, paket handshake ikut ke-route masuk tunnel
+# -> routing loop -> tunnel tidak pernah connect (kuramanime tetap 403).
+GATEWAY=$(ip route show default | awk '/^default/ {print $3; exit}')
+if [ -n "$GATEWAY" ]; then
+  for ip in $(getent ahosts engage.cloudflareclient.com | awk '$1 ~ /^[0-9.]+$/ {print $1}' | sort -u); do
+    ip route replace "$ip/32" via "$GATEWAY" 2>/dev/null || true
+  done
+fi
 RANGES=$(curl -s -m 15 https://www.cloudflare.com/ips-v4)
 if [ -z "$RANGES" ]; then
   # fallback kalau fetch gagal
