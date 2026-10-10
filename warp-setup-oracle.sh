@@ -68,8 +68,26 @@ fi
 for r in $RANGES; do
   ip route replace "$r" dev warp 2>/dev/null || true
 done
+# Bypass WARP untuk host tertentu (mis. Supabase — koneksinya timeout via tunnel).
+# Daftar hostname dari /etc/wireguard/bypass-hosts (satu per baris); dilewatkan
+# via gateway normal karena /32 lebih spesifik dari range Cloudflare di atas.
+if [ -f /etc/wireguard/bypass-hosts ] && [ -n "$GATEWAY" ]; then
+  while read -r _host _rest; do
+    case "$_host" in ''|\#*) continue ;; esac
+    for _ip in $(getent ahosts "$_host" | awk '$1 ~ /^[0-9.]+$/ {print $1}' | sort -u); do
+      ip route replace "$_ip/32" via "$GATEWAY" 2>/dev/null || true
+    done
+  done < /etc/wireguard/bypass-hosts
+fi
 EOF
 sudo chmod +x /etc/wireguard/cf-routes.sh
+# Daftar host yang di-bypass dari WARP (satu per baris). Isi lewat env
+# WARP_BYPASS_HOSTS saat menjalankan script, contoh:
+#   curl -sL <url> | sudo WARP_BYPASS_HOSTS="xyz.supabase.co" bash
+if [ -n "${WARP_BYPASS_HOSTS:-}" ]; then
+  echo "bypass WARP untuk: $WARP_BYPASS_HOSTS"
+  for _h in $WARP_BYPASS_HOSTS; do echo "$_h"; done | sudo tee /etc/wireguard/bypass-hosts > /dev/null
+fi
 
 echo "== 4. Tulis /etc/wireguard/warp.conf (Table=off = routing manual, aman) =="
 CF_PUB="bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
