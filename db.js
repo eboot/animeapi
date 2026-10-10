@@ -67,8 +67,11 @@ export function saveAnime(a) {
   ).run({ ...a, scraped_at: now() })
 }
 
-export function saveEpisode(animeId, ep) {
-  db.prepare(
+export function updatePoster(id, url) {
+  db.prepare('UPDATE anime SET poster = ? WHERE id = ?').run(url, id)
+}
+
+export function saveEpisode(animeId, ep) {  db.prepare(
     `INSERT INTO episodes (anime_id, episode_num, title, url, scraped_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(anime_id, episode_num) DO UPDATE SET title=excluded.title, url=excluded.url, scraped_at=excluded.scraped_at`

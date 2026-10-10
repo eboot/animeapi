@@ -3,6 +3,8 @@
 import express from 'express'
 import { listAnime, getAnime, stats } from './db.js'
 import { scrapeLatest, scrapeAnime } from './scrape.js'
+import { r2Enabled } from './r2.js'
+import { syncPostersToR2 } from './r2-sync.js'
 
 const app = express()
 const PORT = process.env.PORT || 3002
@@ -34,6 +36,19 @@ app.post('/api/scrape/anime', async (req, res) => {
   } catch (e) {
     res.status(502).json({ ok: false, error: e.message })
   }
+})
+
+// R2: status + trigger sync poster ke R2 (jalan di background biar response cepat)
+app.get('/api/r2/status', (req, res) => res.json({ ok: true, enabled: r2Enabled() }))
+let r2Running = false
+app.post('/api/r2/sync', async (req, res) => {
+  if (!r2Enabled()) return res.status(400).json({ ok: false, error: 'R2 belum dikonfigurasi (cek env R2_*)' })
+  if (r2Running) return res.json({ ok: true, message: 'sync sudah jalan' })
+  r2Running = true
+  syncPostersToR2()
+    .then((r) => console.log('[r2] sync selesai:', JSON.stringify(r)))    .catch((e) => console.error('[r2] sync gagal:', e.message))
+    .finally(() => { r2Running = false })
+  res.json({ ok: true, message: 'sync dimulai di background' })
 })
 
 app.listen(PORT, () => console.log(`Kurama scraper API: http://localhost:${PORT}`))
