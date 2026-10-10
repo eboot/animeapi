@@ -1,9 +1,10 @@
-// Scraper KuramaAnime -> SQLite terpisah (data/kurama.sqlite).
+// BRANCH supabase: scraper KuramaAnime -> Supabase (PostgreSQL).
+// Panggil DB via supabase.js (async, wajib await).
 // Header browser lengkap wajib (tanpa Sec-Fetch-* kena 403 Cloudflare).
 import * as cheerio from 'cheerio'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { saveAnime, saveEpisode, updatePoster } from './db.js'
+import { saveAnime, saveEpisode, updatePoster } from './supabase.js'
 import { uploadImage, r2Enabled } from './r2.js'
 
 const execFileAsync = promisify(execFile)
@@ -122,16 +123,16 @@ export async function scrapeHome() {
 export async function scrapeAnime(meta) {
   const html = await fetchPage(meta.url, BASE + '/')
   const d = parseDetail(html, meta)
-  saveAnime(d)
+  await saveAnime(d)
   // Mirror poster ke R2 (kalau dikonfigurasi) — URL R2 yang disimpan.
   if (d.poster && r2Enabled()) {
     const r2url = await uploadImage(d.poster, `posters/kurama/${d.id}`, BASE + '/')
     if (r2url && r2url !== d.poster) {
-      updatePoster(d.id, r2url)
+      await updatePoster(d.id, r2url)
       d.poster = r2url
     }
   }
-  for (const ep of d.episodes) saveEpisode(d.id, ep)
+  for (const ep of d.episodes) await saveEpisode(d.id, ep)
   return { id: d.id, title: d.title, episodes: d.episodes.length }
 }
 
